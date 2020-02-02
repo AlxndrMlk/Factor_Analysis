@@ -1,0 +1,376 @@
+---
+title: 'Factor Analysis #2'
+author: "Aleksander Molak"
+date: "January 7, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('C:\\Users\\aleksander.molak\\Documents\\EDU\\DataCamp_-_Factor_Analysis')
+```
+
+# Factor Analysis 2
+
+```{r}
+library(psych)
+library(sem)
+library(dplyr)
+```
+
+## Get & transform the the data
+
+```{r}
+# Using Big Five data from `psych` - drop DEMO data
+bfi_ <- bfi %>% select(-c(gender, age, education))
+```
+
+```{r}
+# Split the data
+N <- nrow(bfi_)
+
+indices <- seq(1, N)
+
+indices_EFA <- sample(indices, floor(.5 * N))
+indices_CFA <- indices[!(indices %in% indices_EFA)]
+
+bfi_EFA <- bfi_[indices_EFA, ]
+bfi_CFA <- bfi_[indices_CFA, ]
+```
+
+
+## Calculate eigenvalues
+
+```{r}
+# Calculate the correlation matrix first
+bfi_EFA_cor <- cor(bfi_EFA, use = 'pairwise.complete.obs')
+
+# Then use that correlation matrix to calculate eigenvalues
+eigenvals <- eigen(bfi_EFA_cor)
+
+# Look at the eigenvalues returned
+eigenvals$values
+```
+
+
+## Examine eigenvalues using scree plot
+
+```{r}
+# Calculate the correlation matrix 
+bfi_EFA_cor <- cor(bfi_EFA, use = "pairwise.complete.obs")
+
+# Then use the correlation matrix to create the a scree plot
+# NOTE: `factors = FALSE` because we don't want to perform FA
+scree(bfi_EFA_cor, factors = FALSE)
+```
+
+
+```{r}
+# Let's add parrallel analysis
+# parallel = fa.parallel(bfi_EFA,
+#  # fm = 'ml',
+#  fa = 'fa',
+#  n.iter = 50,
+#  SMC = TRUE,
+#  quant = .95)
+```
+
+## Build the model
+
+```{r}
+# Scree plot showed 6 factos above 1, let's follow this recommendation
+EFA_model <- fa(bfi_EFA, nfactors = 6)
+```
+
+```{r}
+EFA_model
+```
+
+
+Let's view factor loadings
+
+
+```{r}
+EFA_model$loadings
+```
+
+
+## Investigate model fit
+
+* ### Absolute fit
+
+  can be measured using:
+
+  * Chi-square test
+  * Tucker-Lewis Index (TLI)
+  * Root Mean Square Error of Approximation (RMSEA)
+  
+  
+* ### Relative fit 
+
+  is used to compare two or more models. It can be measured using:
+  
+  * BIC
+  * AIC
+  
+  
+### Assesing model fit - heuristics || Absolute fit
+
+* $\chi^2$ test is dependent on sample size. It's rare that it's non-significant when the sample is large. Non-sign. result means a good fit.
+
+* Tucker Lewis Index (**TLI**): > 0.90
+
+* Root Mean Square Error of Approximation (**RMSEA**): < 0.05
+
+
+### Comparing models fit - heuristics || Relative fit
+
+* The lower the BIC / AIC the better the model fit
+
+
+Let's run a comparison between 5 and 6 factor models for `bfi`.
+
+```{r}
+EFA_5 <- fa(bfi_EFA, nfactors = 5)
+EFA_6 <- fa(bfi_EFA, nfactors = 6)
+```
+
+```{r}
+cat(EFA_5$BIC, EFA_6$BIC)
+```
+
+
+It looks like the second model (6 factors has much better fit to the data)!
+
+Let's visualize it!
+
+
+```{r}
+fa.diagram(EFA_6)
+```
+
+
+
+# CFA - confirmatory factor analysis
+
+To create CFA syntax we can use `structure.sem()` function from `psych` library.
+
+```{r}
+EFA_syntax <- structure.sem(EFA_model)
+```
+
+```{r}
+EFA_syntax
+```
+
+
+We can also specify it manually (here according to Costa's and McRae's theory):
+
+```{r}
+theory_syntax_manual <- "
+AGR: A1, A2, A3, A4, A5     #Agreeableness
+CNS: C1, C2, C3, C4, C5     #Conscientiousness
+EXT: E1, E2, E3, E4, E5     #Extraversion
+NEU: N1, N2, N3, N4, N5     #Neuroticism
+OPE: O1, O2, O3, O4, O5     #Openness
+"
+
+```
+
+
+
+Add variances and covariances using `cfa()` function from `sem` package.
+
+```{r}
+theory_syntax <- cfa(text = theory_syntax_manual,
+                     reference.indicators = FALSE)
+
+```
+
+
+```{r}
+theory_syntax
+```
+
+
+Note, that `Path` arrows go from a factor to an item. The meaning of this direction is that factor predicts item value.
+
+`StartValue` is blank which mean that it'll be generated randomly (no initial values).
+
+In further rows there are factor and/or item variances (`V`) and covariances (`C`).
+
+
+## Run CFA
+
+To run CFA we'll use `sem()` function. Note, that we're using theory-driven syntax here (5 instead of 6 factors).
+
+```{r}
+theory_CFA <- sem(theory_syntax, data = bfi_CFA)
+EFA_CFA <- sem(EFA_syntax, data = bfi_CFA)
+```
+
+```{r}
+summary(theory_CFA)
+```
+
+
+### Results and reporting
+
+Log-likelihood test ($\chi^2$) might be often significant due to sample size, although the desired outcome would be non-significant. 
+
+To get more meaningful absolute fit statistics we can use:
+
+`options(fit.indices = c("CFI", "GFI", "RMSEA", "BIC"))`
+
+
+#### Interpretation heuristics:
+
+* RMSEA < .05
+
+* GFI (goodnes of fit index) > .9
+
+* CFI (Comparative Fit Index) > .9
+
+_____________
+
+Let's apply this to our model.
+
+```{r}
+options(fit.indices = c("CFI", "GFI", "RMSEA", "BIC"))
+
+```
+
+```{r}
+theory_CFA <- sem(theory_syntax, data = bfi_CFA)
+```
+
+```{r}
+summary(theory_CFA)
+```
+
+
+Seems that the model does not fit the data too good...
+
+
+
+## EFA vs CFA
+
+**EFA** and **CFA** are mathematically and conceptually different. 
+
+EFA:
+
+* Estimates all possible variable/factor relationships
+* Looking for patterns in the data
+* Use when you don't have a well-developed theory
+
+CFA:
+
+* Only specified variable/factor relationships
+* Testing a theory that you know in advance
+* Report when publishing a new measure / scale
+
+_____
+
+Let's see how loadings are different for EFA and CFA: 
+
+
+```{r}
+# View the first five rows of the EFA loadings
+EFA_model$loadings[1:5,]
+
+```
+
+```{r}
+# View the first five loadings from the CFA estimated from the EFA results
+summary(EFA_CFA)$coeff[1:5,]
+```
+
+For instance `A1 -> MR5 == -.522` and its equivalent `F4A1 (A1 <--- MR5) == -.556`
+
+### Compare score distributions
+
+```{r}
+# Extracting factor scores from the EFA model
+EFA_scores <- EFA_model$scores
+
+# Calculating factor scores by applying the CFA parameters to the EFA dataset
+CFA_scores <- fscores(EFA_CFA, data = bfi_EFA)
+
+# Comparing factor scores from the EFA and CFA results from the bfi_EFA dataset
+plot(density(EFA_scores[,1], na.rm = TRUE), 
+    xlim = c(-3, 3), ylim = c(0, 1), col = "blue")
+lines(density(CFA_scores[,1], na.rm = TRUE), 
+    xlim = c(-3, 3), ylim = c(0, 1), col = "red")
+```
+
+
+As we can see distributions slightly differ. Only slightly.
+
+### Improving the fit
+
+Sometimes it's beneficial to add new loadings to syntax. For instance EXT and NEU can be loaded by the same items (in fact they are correlated to an extent).
+
+
+```{r}
+theory_syn_add <- "
+AGR: A1, A2, A3, A4, A5
+CNS: C1, C2, C3, C4, C5
+EXT: E1, E2, E3, E4, E5, N4  # Adding NEU4 to EXT
+NEU: N1, N2, N3, N4, N5, E3  # Adding EXT3 to NEU
+OPE: O1, O2, O3, O4, O5
+"
+```
+
+
+Now, let's create a new CFA model
+
+```{r}
+# Convert to sem-compatible syntax
+theory_syn2 <- cfa(text = theory_syn_add, reference.indicators = FALSE)
+```
+
+```{r}
+# Fit the model
+theory_CFA_add <- sem(model = theory_syn2, data = bfi_CFA)
+```
+
+```{r}
+summary(theory_CFA_add)
+```
+
+
+Compare with the previous model
+
+```{r}
+cat(summary(theory_CFA)$BIC, summary(theory_CFA_add)$BIC)
+```
+
+
+The second model have a much better fit in terms of `BIC`. Let's see if the differnece statistically significant:
+
+```{r}
+anova(theory_CFA, theory_CFA_add)
+```
+
+
+$\chi^2$ for `theory_CFA_add` is lower and the difference is significant at `p < .001`, this result suggests that `theory_CFA_add` has beter fit to the data than `theory_CFA`.
+
+We can also compare CFI values:
+
+```{r}
+cat(summary(theory_CFA)$CFI, summary(theory_CFA_add)$CFI)
+```
+
+
+The higher the CFI value, the better the fit - `theory_CFA_add` is the winner again.
+
+Finally, we can look at `RMSEA`:
+
+```{r}
+cat(summary(theory_CFA)$RMSEA[1], summary(theory_CFA_add)$RMSEA[1])
+```
+
+
+Again, `theory_CFA_add` wins.

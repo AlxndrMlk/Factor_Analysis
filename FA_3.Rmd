@@ -1,0 +1,39 @@
+---
+title: 'Factor Analysis #3'
+author: "Aleksander Molak"
+date: "January 9, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('C:\\Users\\aleksander.molak\\Documents\\EDU\\DataCamp_-_Factor_Analysis')
+```
+
+# Factor Analysis 3
+
+```{r}
+library(psych)
+library(sem)
+library(dplyr)
+```
+
+
+## EFA vs CFA
+
+**EFA** and **CFA** are mathematically and conceptually different. 
+
+EFA:
+
+* Estimates all possible variable/factor relationships
+* Looking for patterns in the data
+* Use when you don't have a well-developed theory
+
+CFA:
+
+* Only specified variable/factor relationships
+* Testing a theory that you know in advance
+* Report when publishing a new measure / scale
+

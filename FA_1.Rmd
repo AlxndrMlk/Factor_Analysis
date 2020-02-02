@@ -1,0 +1,147 @@
+---
+title: 'Factor Analysis #1'
+author: "Aleksander Molak"
+date: "January 6, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('C:\\Users\\aleksander.molak\\Documents\\EDU\\DataCamp_-_Factor_Analysis')
+```
+
+# Factor Analysis
+
+```{r}
+library(psych)
+```
+
+## Get the data
+
+```{r}
+consp <- readRDS('conspiracy_data.rds')
+```
+
+
+## Basics - Single factor FA
+
+```{r}
+# Conduct a single-factor EFA
+EFA_model <- fa(consp)
+
+# View the results
+EFA_model
+```
+
+```{r}
+# View the factor loadings
+EFA_model$loadings
+```
+
+```{r}
+# Create a path diagram of the items' factor loadings
+fa.diagram(EFA_model)
+```
+
+```{r}
+#Examine the distribution of individual scores
+plot(density(EFA_model$scores, na.rm = TRUE), 
+    main = "Factor Scores")
+```
+
+## Simulate the process of scale development
+
+### 1. Generate items
+
+### 2. Get a pilot answers to your items based on representative sample
+
+Let's assume that we already did (1 and 2) it and `consp` data contains answers to our items.
+
+### 3. Examine the data
+
+```{r}
+describe(consp)
+```
+
+### 4. Consider if you want to run EFA, CFA or both
+
+### 5. If both - split your dataset into two random halves
+
+```{r}
+# Get n of rows
+n <- nrow(consp)
+
+# Generate a sequence
+indices <- seq(1, n)
+
+# Sample indices
+indices_EFA <- sample(indices, floor((.5 * n)))
+indices_CFA <- indices[!(indices %in% indices_EFA)]
+```
+
+```{r}
+# Create datasets
+consp_EFA <- consp[indices_EFA, ]
+consp_CFA <- consp[indices_CFA, ]
+```
+
+### 6. Make sure that both samples are similar
+
+```{r}
+# Create grouping variable based on indices
+group_var <- vector("numeric", nrow(consp))
+group_var[indices_EFA] <- 0
+group_var[indices_CFA] <- 1
+```
+
+```{r}
+# Add column to the original data
+consp_grouped <- cbind(consp, group_var)
+```
+
+We'll now use two functions from `psych` package: `describeBy()` and `statsBy()`.
+
+**NOTE**: In the first one we use column name as a **variable** in he second one as a **string**! [Sweet peculiarities of R]
+
+```{r}
+describeBy(consp_grouped, group = group_var)
+```
+
+```{r}
+statsBy(consp_grouped, group = "group_var")
+```
+
+
+## Measure (scale) features
+
+```{r}
+# Correlation
+lowerCor(consp)
+```
+
+
+```{r}
+# Get p-values for correlations
+corr.test(consp)$p
+```
+
+
+<br>
+The sample size is big, all $p-values$ are virtually zero.
+
+Let's examine Cronbach's $\alpha$:
+
+
+
+```{r}
+# Get Cronbach's alpha for the whole scale
+alpha(consp)
+```
+
+```{r}
+# Check split-half reliability
+splitHalf(consp)
+```
+
